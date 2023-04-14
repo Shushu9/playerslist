@@ -1,66 +1,66 @@
-import { useEffect, useState } from "react";
-// import * as React from 'react';
-// import { styled } from '@mui/styles';
-// import './participants-list.css';
-import { makeStyles } from '@material-ui/styles';
-
-
-
-
-
-
-
+import { useEffect, useState, useCallback } from "react";
+import { makeStyles } from '@material-ui/core/styles';
+import { useTheme } from '@material-ui/core/styles';
 
 
 const ParticipantsList = () => {
 
     const [data, setData] = useState([]);
+    const [multipleTables, setMultipleTables] = useState(false);
 
-    ///******gettind players list  */
-    const fetchData = () => {
+    const theme = useTheme();
+
+
+    //******** выбор количества таблиц для рендера */
+    function checkTables() { //вложенная функция в useEffetc
+        console.log('checkTables')
+        setMultipleTables(() => (data.length > 40 && window.innerWidth >= 1200) ? true : false)
+    };
+
+
+    // 
+    // useMemo(() => {
+    //     setMultipleTables(() => (data.length > 40 && window.innerWidth >= 1200) ? true : false);
+    // }, [data]);
+
+    //******** получение данные для заполнения таблицы */
+    useEffect(() => {
         fetch(`./participants.json`)
             .then((response) => response.json())
             .then((actualData) => {
-                // console.log(actualData);
+                console.log(actualData);
                 setData(actualData);
+            }).then(() => {
+                checkTables(); // без useMemo и без повторного вызова функции
             })
             .catch((err) => {
                 console.log(err.message);
             });
-    };
-
-    useEffect(() => {
-        fetchData();
     }, []);
 
 
 
-
-    //********classes ********* */
-
-    const classes = styles();
+    //******** названия классов для стилизации */
+    const { tableWrapper, tdCenter, tbl, tdName, tdHeader, participants } = tableStyles();
 
 
-    // ******* condition that chose how much tables should we render
-    const makeTwoTables = (data.length > 20 && window.innerWidth >= 1200) ? true : false;
-
-
-    // ******* creates list of participants pairs
+    // ******* Создает строки для будущей таблицы (всё, что мы поместим в tbody)
     const makeParticipantsList = (data, initNumber, lastNumber) => {
         let pairNumber = initNumber === 0 ? 1 : (initNumber / 2) + 1;
         let content = [];
+        console.log('makeParticipantsList');
 
         for (let i = initNumber; i < lastNumber; i = i + 2) {
             content.push(
-                <tr key={pairNumber - 1} className={classes.participants}>
-                    <td className={classes.tdCenter}>{pairNumber}</td>
-                    <td className={classes.tdName}>{data[i].name}</td>
-                    <td className={classes.tdCenter}>{data[i].rating}</td>
-                    <td className={classes.tdCenter}>0</td>
-                    <td className={classes.tdCenter}>0 - 0</td>
-                    <td className={classes.tdCenter}>0</td>
-                    <td className={classes.tdName}>{data[i + 1].name}</td>
-                    <td className={classes.tdCenter}>{data[i + 1].rating}</td>
+                <tr key={pairNumber - 1} className={participants}>
+                    <td className={tdCenter}>{pairNumber}</td>
+                    <td className={tdName}>{data[i].name}</td>
+                    <td className={tdCenter}>{data[i].rating}</td>
+                    <td className={tdCenter}>0</td>
+                    <td className={tdCenter}>0 - 0</td>
+                    <td className={tdCenter}>0</td>
+                    <td className={tdName}>{data[i + 1].name}</td>
+                    <td className={tdCenter}>{data[i + 1].rating}</td>
                 </tr>
             );
             pairNumber++;
@@ -69,20 +69,22 @@ const ParticipantsList = () => {
     };
 
 
-    // ******* creates header of participants table
-    const makeTableHead = (data, initNumber, lastNumber) => {
+    // ******* Создает шапку и обертку для будущей таблицы (thead и пустой tbody)
+    const makeTableHead = useCallback((data, initNumber, lastNumber) => {
+        console.log('makeTableHead');
+
         const table = (
-            <table className={classes.table}>
+            <table className={tbl}>
                 <thead>
-                    <tr className={classes.tdHeader}>
-                        <td className={classes.tdCenter} >№</td>
-                        <td className={classes.tdName}>Имя</td>
-                        <td className={classes.tdCenter}>Рейт</td>
-                        <td className={classes.tdCenter}>Очки</td>
-                        <td className={classes.tdCenter}>Результат</td>
-                        <td className={classes.tdCenter}>Очки</td>
-                        <td className={classes.tdName}>Имя</td>
-                        <td className={classes.tdCenter} nter>Рейт</td>
+                    <tr className={tdHeader}>
+                        <td className={tdCenter} >№</td>
+                        <td className={tdName}>Имя</td>
+                        <td className={tdCenter}>Рейт</td>
+                        <td className={tdCenter}>Очки</td>
+                        <td className={tdCenter}>Результат</td>
+                        <td className={tdCenter}>Очки</td>
+                        <td className={tdName}>Имя</td>
+                        <td className={tdCenter}>Рейт</td>
                     </tr>
                 </thead>
                 <tbody>
@@ -97,21 +99,21 @@ const ParticipantsList = () => {
             </>
 
         )
-    }
+    }, []);
+
 
     return (
-        <div className={classes.tableWrapper}>
-            {makeTwoTables ? makeTableHead(data, 0, Math.ceil(data.length / 2)) : makeTableHead(data, 0, data.length - 1)}
-            {makeTwoTables ? makeTableHead(data, Math.ceil(data.length / 2) + 1, data.length - 1) : null}
+        <div className={tableWrapper}>
+            {multipleTables ? makeTableHead(data, 0, Math.ceil(data.length / 2)) : makeTableHead(data, 0, data.length - 1)}
+            {multipleTables ? makeTableHead(data, Math.ceil(data.length / 2) + 1, data.length - 1) : null}
         </div>
     )
 }
 
-export default ParticipantsList;
 
 
 
-const styles = makeStyles({
+const tableStyles = makeStyles((theme) => ({
     tableWrapper: {
         fontFamily: "'Inter', sans-serif",
         fontWeight: '400',
@@ -119,13 +121,12 @@ const styles = makeStyles({
         display: 'flex',
         justifyContent: 'space-around',
         height: 'calc(100vh - 60px)',
-    },
-    '@media (max-width: 560px)': {
-        tableWrapper: {
+        [theme.breakpoints.down('xs')]: {
             fontSize: '0.6em',
-        }
+        },
     },
-    table: {
+
+    tbl: {
         margin: '5px',
         borderSpacing: '0',
         borderRadius: '5px',
@@ -144,6 +145,9 @@ const styles = makeStyles({
             fontWeight: 'bold',
             color: '#fff',
             backgroundColor: 'rgba(0, 0, 0, 1)',
+            [theme.breakpoints.down('xs')]: {
+                padding: '10px 5px',
+            },
         },
 
         '& td:first-child': {
@@ -155,15 +159,6 @@ const styles = makeStyles({
         }
     },
 
-    '@media (max-width: 600px)': {
-        tdHeader: {
-            '& td': {
-                padding: '10px 5px',
-            }
-        }
-
-    },
-
     participants: {
         '& td': {
             padding: '10px',
@@ -173,5 +168,8 @@ const styles = makeStyles({
             backgroundColor: 'rgba(0, 0, 0, 0.04)',
         }
     },
+}));
 
-});
+
+
+export default ParticipantsList;
