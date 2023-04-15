@@ -1,37 +1,19 @@
-import { useEffect, useState, useCallback } from "react";
-import { makeStyles } from '@material-ui/core/styles';
-import { useTheme } from '@material-ui/core/styles';
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Theme, makeStyles, createStyles } from '@material-ui/core/styles';
 
 
-const ParticipantsList = () => {
+const Table = () => {
 
     const [data, setData] = useState([]);
     const [multipleTables, setMultipleTables] = useState(false);
 
-    const theme = useTheme();
-
-
-    //******** выбор количества таблиц для рендера */
-    function checkTables() { //вложенная функция в useEffetc
-        console.log('checkTables')
-        setMultipleTables(() => (data.length > 30 && window.innerWidth >= 1200) ? true : false)
-    };
-
-
-    // 
-    // useMemo(() => {
-    //     setMultipleTables(() => (data.length > 40 && window.innerWidth >= 1200) ? true : false);
-    // }, [data]);
-
-    //******** получение данные для заполнения таблицы */
+    //******** получение данных для будущей таблицы */
     useEffect(() => {
         fetch(`./participants.json`)
             .then((response) => response.json())
             .then((actualData) => {
                 console.log(actualData);
                 setData(actualData);
-            }).then(() => {
-                checkTables(); // без useMemo и без повторного вызова функции
             })
             .catch((err) => {
                 console.log(err.message);
@@ -39,16 +21,24 @@ const ParticipantsList = () => {
     }, []);
 
 
+    //******** выбор количества таблиц для рендера */
+    useMemo(() => {
+        console.log('settingTableCount');
+        setMultipleTables(() => (data.length > 40 && window.innerWidth >= 1200) ? true : false);
+    }, [data]);
 
     //******** названия классов для стилизации */
     const { tableWrapper, tdCenter, tbl, tdName, tdHeader, participants } = tableStyles();
 
 
-    // ******* Создает строки для будущей таблицы (всё, что мы поместим в tbody)
-    const makeParticipantsList = (data, initNumber, lastNumber) => {
+
+    // ******* Создает будущую таблицу
+    const makeTable = useCallback((data, initNumber, lastNumber) => {
+        console.log('makeTable');
+
+        // ******* Создает строки для будущей таблицы (всё, что мы поместим в tbody)
         let pairNumber = initNumber === 0 ? 1 : (initNumber / 2) + 1;
         let content = [];
-        console.log('makeParticipantsList');
 
         for (let i = initNumber; i < lastNumber; i = i + 2) {
             content.push(
@@ -65,14 +55,8 @@ const ParticipantsList = () => {
             );
             pairNumber++;
         }
-        return content;
-    };
 
-
-    // ******* Создает шапку и обертку для будущей таблицы (thead и пустой tbody)
-    const makeTableHead = useCallback((data, initNumber, lastNumber) => {
-        console.log('makeTableHead');
-
+        // ******* Создает шапку и обертку для будущей таблицы (thead и пустой tbody)
         const table = (
             <table className={tbl}>
                 <thead>
@@ -88,10 +72,11 @@ const ParticipantsList = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {makeParticipantsList(data, initNumber, lastNumber)}
+                    {content}
                 </tbody>
             </table>
         );
+
 
         return (
             <>
@@ -99,13 +84,13 @@ const ParticipantsList = () => {
             </>
 
         )
-    }, []);
+    }, [tdCenter, tbl, tdName, tdHeader, participants]);
 
 
     return (
         <div className={tableWrapper}>
-            {multipleTables ? makeTableHead(data, 0, Math.ceil(data.length / 2)) : makeTableHead(data, 0, data.length - 1)}
-            {multipleTables ? makeTableHead(data, Math.ceil(data.length / 2) + 1, data.length - 1) : null}
+            {multipleTables ? makeTable(data, 0, Math.ceil(data.length / 2)) : makeTable(data, 0, data.length - 1)}
+            {multipleTables ? makeTable(data, Math.ceil(data.length / 2) + 1, data.length - 1) : null}
         </div>
     )
 }
@@ -113,10 +98,10 @@ const ParticipantsList = () => {
 
 
 
-const tableStyles = makeStyles((theme) => ({
+const tableStyles = makeStyles((theme: Theme) => createStyles({
     tableWrapper: {
         fontFamily: "'Inter', sans-serif",
-        fontWeight: '400',
+        fontWeight: 400,
         fontSize: '0.8em',
         display: 'flex',
         justifyContent: 'space-around',
@@ -172,4 +157,4 @@ const tableStyles = makeStyles((theme) => ({
 
 
 
-export default ParticipantsList;
+export default Table;
