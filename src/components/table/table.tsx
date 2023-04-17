@@ -1,19 +1,22 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Theme, makeStyles, createStyles } from '@material-ui/core/styles';
+// import { useEffect, useState, useCallback, useMemo } from "react";
+// import { Theme, makeStyles, createStyles, useTheme } from '@material-ui/core/styles';
+
 
 
 const Table = () => {
-
     const [data, setData] = useState([]);
-    const [multipleTables, setMultipleTables] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
 
     //******** получение данных для будущей таблицы */
     useEffect(() => {
         fetch(`./participants.json`)
             .then((response) => response.json())
             .then((actualData) => {
-                console.log(actualData);
                 setData(actualData);
+                setIsLoading(false);
             })
             .catch((err) => {
                 console.log(err.message);
@@ -21,84 +24,118 @@ const Table = () => {
     }, []);
 
 
-    //******** выбор количества таблиц для рендера */
-    useMemo(() => {
-        console.log('settingTableCount');
-        setMultipleTables(() => (data.length > 40 && window.innerWidth >= 1200) ? true : false);
-    }, [data]);
-
     //******** названия классов для стилизации */
-    const { tableWrapper, tdCenter, tbl, tdName, tdHeader, participants } = tableStyles();
+    const { tableWrapper, tdCenter, tbl, tdName, tdHeader, participants } = useStyles();
 
 
+    // ******* Создает нужное количество таблиц
+    const makeTables = useCallback(() => {
 
-    // ******* Создает будущую таблицу
-    const makeTable = useCallback((data, initNumber, lastNumber) => {
-        console.log('makeTable');
+        // ******* Создает будущую таблицу
+        const makeOneTable = (data: Array<any>, initNumber: number, lastNumber: number, key: number) => {
 
-        // ******* Создает строки для будущей таблицы (всё, что мы поместим в tbody)
-        let pairNumber = initNumber === 0 ? 1 : (initNumber / 2) + 1;
-        let content = [];
+            // ******* Создает строки для будущей таблицы (всё, что мы поместим в tbody)
+            let pairNumber = (initNumber === 0) ? 1 : Math.ceil(initNumber / 2) + 1;
+            let content = [];
 
-        for (let i = initNumber; i < lastNumber; i = i + 2) {
-            content.push(
-                <tr key={pairNumber - 1} className={participants}>
-                    <td className={tdCenter}>{pairNumber}</td>
-                    <td className={tdName}>{data[i].name}</td>
-                    <td className={tdCenter}>{data[i].rating}</td>
-                    <td className={tdCenter}>0</td>
-                    <td className={tdCenter}>0 - 0</td>
-                    <td className={tdCenter}>0</td>
-                    <td className={tdName}>{data[i + 1].name}</td>
-                    <td className={tdCenter}>{data[i + 1].rating}</td>
-                </tr>
+            for (let i = initNumber; i < lastNumber; i = i + 2) {
+                content.push(
+                    <tr key={pairNumber} className={participants}>
+                        <td className={tdCenter}>{pairNumber}</td>
+                        <td className={tdName}>{data[i].name}</td>
+                        <td className={tdCenter}>{data[i].rating}</td>
+                        <td className={tdCenter}>0</td>
+                        <td className={tdCenter}>0 - 0</td>
+                        <td className={tdCenter}>0</td>
+                        <td className={tdName}>{data[i + 1].name}</td>
+                        <td className={tdCenter}>{data[i + 1].rating}</td>
+                    </tr>
+                );
+                pairNumber++;
+            }
+
+            // ******* Создает шапку и обертку для будущей таблицы (thead и пустой tbody)
+            const table = (
+                <table className={tbl}>
+                    <thead>
+                        <tr className={tdHeader}>
+                            <td className={tdCenter} >№</td>
+                            <td className={tdName}>Имя</td>
+                            <td className={tdCenter}>Рейт</td>
+                            <td className={tdCenter}>Очки</td>
+                            <td className={tdCenter}>Результат</td>
+                            <td className={tdCenter}>Очки</td>
+                            <td className={tdName}>Имя</td>
+                            <td className={tdCenter}>Рейт</td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {content}
+                    </tbody>
+                </table>
             );
-            pairNumber++;
+
+
+            return (
+                <div key={key}>
+                    {table}
+                </div>
+
+            )
+        };
+
+
+
+        const reedableTableWidth = 600; //читабельная ширина таблицы в данном проекте. определяет максимально возможное количество таблиц на странице
+        const tableCount = window.innerWidth > reedableTableWidth ? Math.floor(window.innerWidth / reedableTableWidth) : 1;
+        let content = [];
+        //dataStep всегда четно для нашего случая
+        const dataStep = (data.length / tableCount) % 2 === 0 ? data.length / tableCount :
+            (Math.ceil(data.length / tableCount) + 1) % 2 === 0 ? Math.ceil(data.length / tableCount) + 1 : Math.ceil(data.length / tableCount) + 2;
+
+        let startCounter = 0;
+        let endCounter = dataStep;
+
+
+        // ******* Создает нужное количество таблиц
+        for (let i = 0; i < tableCount; i++) {
+            content.push(makeOneTable(data, startCounter, endCounter, i));
+            startCounter += dataStep;
+            endCounter += dataStep;
+
+            if (data.length - 1 <= startCounter) {
+                break //нужно для предотвращения образования пустых таблиц 
+            }
+            if (endCounter >= data.length) {
+                endCounter = data.length - 1;
+            }
+
         }
 
-        // ******* Создает шапку и обертку для будущей таблицы (thead и пустой tbody)
-        const table = (
-            <table className={tbl}>
-                <thead>
-                    <tr className={tdHeader}>
-                        <td className={tdCenter} >№</td>
-                        <td className={tdName}>Имя</td>
-                        <td className={tdCenter}>Рейт</td>
-                        <td className={tdCenter}>Очки</td>
-                        <td className={tdCenter}>Результат</td>
-                        <td className={tdCenter}>Очки</td>
-                        <td className={tdName}>Имя</td>
-                        <td className={tdCenter}>Рейт</td>
-                    </tr>
-                </thead>
-                <tbody>
-                    {content}
-                </tbody>
-            </table>
-        );
+        return content;
+    }, [data, participants, tbl, tdCenter, tdHeader, tdName]);
 
 
-        return (
-            <>
-                {table}
-            </>
+    const content = makeTables()
 
-        )
-    }, [tdCenter, tbl, tdName, tdHeader, participants]);
-
-
+    if (isLoading) {
+        return null
+    }
     return (
-        <div className={tableWrapper}>
-            {multipleTables ? makeTable(data, 0, Math.ceil(data.length / 2)) : makeTable(data, 0, data.length - 1)}
-            {multipleTables ? makeTable(data, Math.ceil(data.length / 2) + 1, data.length - 1) : null}
-        </div>
+        <div className={tableWrapper} >
+            {content}
+        </div >
     )
 }
 
 
 
 
-const tableStyles = makeStyles((theme: Theme) => createStyles({
+
+
+
+
+const useStyles = makeStyles((theme: Theme) => createStyles({
     tableWrapper: {
         fontFamily: "'Inter', sans-serif",
         fontWeight: 400,
